@@ -15,7 +15,7 @@ menu:
 ---
 
 Between growing up as a huge Star Trek fan and my mother doing her web publishing certifications my first foray into all
-thing IT began with me trying to make a website showcasing the many spaceships in Star Trek in a LCARS inspired presentation.
+thing IT began with me trying to make a website showcasing the many spaceships in Star Trek in a [LCARS](https://memory-alpha.fandom.com/de/wiki/LCARS) inspired presentation.
 
 Shortly after that I began to dream big and had set my mind that I wanted to programm a video game.
 So the next time my mom and I went to a book store I started looking and found what I needed.

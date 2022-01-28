@@ -1,8 +1,7 @@
 ---
 title: Projects
-#description: 
+description: A showcase of my projects
 date: '2022-01-27'
-#license: CC BY-NC-ND
 lastmod: '2022-01-27'
 menu:
     main: 
@@ -11,4 +10,4 @@ menu:
             icon: clipboard-list
 ---
 
-Growing up as a huge Star Trek fan
+Under construction at the moment.
