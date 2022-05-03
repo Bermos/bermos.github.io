@@ -1,1 +1,67 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Bermos tech and thoughts</title><link>https://bermos.github.io/</link><description>Recent content on Bermos tech and thoughts</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Thu, 27 Jan 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://bermos.github.io/index.xml" rel="self" type="application/rss+xml"/></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Bermos tech and thoughts</title><link>https://bermos.github.io/</link><description>Recent content on Bermos tech and thoughts</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Tue, 03 May 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://bermos.github.io/index.xml" rel="self" type="application/rss+xml"/><item><title>Efficiently capture timelapses</title><link>https://bermos.github.io/p/efficiently-capture-timelapses/</link><pubDate>Tue, 03 May 2022 00:00:00 +0000</pubDate><guid>https://bermos.github.io/p/efficiently-capture-timelapses/</guid><description>&lt;h1 id="efficiently-capture-timelapses">Efficiently capture timelapses&lt;/h1>
+&lt;h2 id="the-problem">The problem&lt;/h2>
+&lt;p>You want to capture a timelapse over the course of lets say a week.
+For reference, I&amp;rsquo;m going to use the defaults given by the RaspberryPi camera module.
+If any kind of detail of movement should be captured the length between taking single pictures cannot be too great.
+For active scenes with people moving about a picture once every minute won&amp;rsquo;t cut it.
+One every 5 seconds is from my personal testing about right to capture human scale movement.&lt;/p>
+&lt;p>Pictures taken by the RaspberryPi camera module are about 5 MP in size, in .jpeg that comes out to about 2.4MB per picture &lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>.
+For a week of timelapsing that&amp;rsquo;s a whooping &lt;code>2.4 * 12 * 60 * 24 * 7 = 290304MB = 283.5GB&lt;/code>! Even with SD card prices
+dropping as they have it is still a rather costly endeavour.&lt;/p>
+&lt;h2 id="the-idea">The idea&lt;/h2>
+&lt;p>Now most timelapses have a rather neat property. Most of the time, most of the picture won&amp;rsquo;t change from frame to frame.
+This means a lot of the data is redundant! It would therefore make sense if we could only store the &lt;em>usually&lt;/em> small
+difference between each frame.&lt;/p>
+&lt;h2 id="the-a-solution">The (a) solution&lt;/h2>
+&lt;p>The video codec H.264 and it&amp;rsquo;s newer iteration H.265 do exactly that. They create keyframes which are full pictures and
+every subsequent frame is calculated by its difference to its predecessor. Which also means H.26x only has to store
+keyframes + the changes in each frame. A test with the less efficient codec H.264 resulted in about 64GB of storage
+used for 120 continuous days of taking one picture every 5 seconds. Of course the exact storage consumption will vary
+depending on how much each picture differs from the next.&lt;/p>
+&lt;h2 id="examples">Examples&lt;/h2>
+&lt;p>Sounds cool and whatnot, how do I actually encode a video on the fly?
+The answer as with all things AV is of course &lt;a class="link" href="https://www.ffmpeg.org/" target="_blank" rel="noopener"
+>ffmpeg&lt;/a>.&lt;/p>
+&lt;p>&lt;code>ffmpeg -f image2pipe -framerate 25 -i - -c:v libx264 -f mp4 -r 25 output.mp4&lt;/code>&lt;/p>
+&lt;p>Let me explain what this command is about.&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>-f image2pipe&lt;/code>: force input to be the image2pipe format&lt;/li>
+&lt;li>&lt;code>-framerate 25&lt;/code>: this is purely personal, if you want your timelapse to have 60fps set it here&lt;/li>
+&lt;li>&lt;code>-i -&lt;/code>: get the image from the pipe &lt;code>-&lt;/code>, this will be useful shortly&lt;/li>
+&lt;li>&lt;code>-c:v libx264&lt;/code>: use the H.264 codec&lt;/li>
+&lt;li>&lt;code>-f mp4&lt;/code>: force output to be in the mp4 format&lt;/li>
+&lt;li>&lt;code>-r 25&lt;/code>: force the output video framerate to 25fps&lt;/li>
+&lt;li>&lt;code>output.mp4&lt;/code>: output file name&lt;/li>
+&lt;/ul>
+&lt;p>So to recap this command instructs ffmpeg to take images from the pipe and
+encode them into the output.mp4 file as long as the pipe is open.
+You can use named pipes to keep this command open and pipe the images into it when they are taken.&lt;/p>
+&lt;h2 id="it-cant-be-that-easy-can-it">It can&amp;rsquo;t be that easy, can it?&lt;/h2>
+&lt;p>Of course not. Your Raspberry might crash, lose power, or you accidentally stop the image
+taking or the ffmpeg process. If that happens you&amp;rsquo;ll find that your video is corrupted.
+It can be rescued if you are lucky, but I wouldn&amp;rsquo;t count on it.&lt;/p>
+&lt;p>&lt;code>ffmpeg -f image2pipe -framerate 25 -i - -g 120 -c:v libx264 -f mp4 -movflags frag_keyframe+empty_moov -r 25 args.out_name&lt;/code>&lt;/p>
+&lt;p>So what does this extended ffmpeg command do?&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>-g 120&lt;/code>: sets the interval between keyframes to 120. So at max 119 frames can be lost. Decreasing the number minimises the loss but increases the file size.&lt;/li>
+&lt;li>&lt;code>-movflags frag_keyframe+empty_moov&lt;/code>: this moves the movie encoding information to the beginning of the file. Normally this would be written at the end when
+the ffmpeg process is terminated gracefully.&lt;/li>
+&lt;/ul>
+&lt;p>These modifications can confuse some lesser video players so after recording is finished it
+is recommended to re-encode the video with this &lt;code>ffmpeg -i input.mp4 -c copy output.mp4&lt;/code> easy
+command.&lt;/p>
+&lt;h2 id="the-code">The code&lt;/h2>
+&lt;p>So, after many words what was actually done with the knowledge gained?&lt;/p>
+&lt;p>I wrote a Python script that would let us capture the LAN party we organized with our student
+association from setting up the first table to cleaning the last RedBull can.&lt;/p>
+&lt;p>Code: &lt;a class="link" href="https://github.com/VSETH-GECO/PiCam" target="_blank" rel="noopener"
+>Raspberry PI timelapse recoder&lt;/a>&lt;/p>
+&lt;div class="footnotes" role="doc-endnotes">
+&lt;hr>
+&lt;ol>
+&lt;li id="fn:1">
+&lt;p>&amp;ldquo;Raspberry Pi Documentation - Camera&amp;rdquo;, &lt;a class="link" href="https://www.raspberrypi.com/documentation/accessories/camera.html#file-size" target="_blank" rel="noopener"
+>https://www.raspberrypi.com/documentation/accessories/camera.html#file-size&lt;/a>&amp;#160;&lt;a href="#fnref:1" class="footnote-backref" role="doc-backlink">&amp;#x21a9;&amp;#xfe0e;&lt;/a>&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div></description></item></channel></rss>
